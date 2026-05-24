@@ -1,0 +1,14 @@
+[project]
+name = "plex-tools"
+version = "0.1.0"
+description = "Outils CLI pour Plex : export playlists, export bibliothèque, reconstruction de playlists"
+requires-python = ">=3.12"
+dependencies = [
+    "requests",
+    "thefuzz>=0.22.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]

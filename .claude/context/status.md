@@ -1,0 +1,47 @@
+# Status
+
+## Objectif
+Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes.
+
+## Focus actuel
+Module `repair/` terminé et exécuté en production. Module `rebuild/` enrichi avec rapport CSV des non-résolus. Prêt pour run complet rebuild sur toutes les playlists.
+
+## Log
+
+### 2026-05-24
+- Done :
+  - Module `repair/` complet : scanner, fixer, report (pré-run + post-run)
+  - Scan détecte albums/tracks sans titre (copie titleSort → title) et tracks sans index (extraction depuis noms de fichier)
+  - Détection intelligente des patterns de numérotation : disc+track (3-4 chiffres), index brut, overflow (3→4 chiffres)
+  - Temporisation (50ms entre appels) + retry automatique (3 tentatives, backoff exponentiel)
+  - Rapport pré-exécution CSV sauvegardé avant chaque run
+  - Tests réussis sur Jerry Lee Lewis et Jungle Brothers (0 erreur)
+  - **Run complet exécuté** : 1 album + 11 374 tracks corrigés, 891 albums rafraîchis, 0 erreur
+  - Vérification post-run : il reste 9 albums + 1 track (résidu minimal)
+  - Ajout export CSV des tracks non résolues dans `rebuild/report.py`
+- Problèmes rencontrés :
+  - DNS transitoire (`zimaboard2.local` non résolu) → résolu par retry
+  - Deux processus lancés en parallèle par accident → tués et relancé proprement
+- Next :
+  1. Dry-run complet rebuild sur les 31 playlists
+  2. Analyser rapport + CSV non-résolus, ajuster seuils fuzzy si besoin
+  3. Exécution réelle rebuild (`--execute`)
+  4. Initial commit + repo GitHub
+
+### 2026-05-15
+- Done :
+  - Fusion de 3 projets en monorepo `plex-tools`
+  - Remplacement de `plexapi` par `requests`
+  - Restructuration : `export/` + `rebuild/`
+  - 12 tests passent, dry-run vérifié
+- Next :
+  1. Dry-run complet sur les 31 playlists exportées
+  2. Exécution réelle rebuild
+
+### 2026-05-14
+- Code initial dans plex-playlist-rebuild (supersédé par le monorepo)
+- Découverte du timeout plexapi sur grosse bibliothèque
+
+### 2026-05-13
+- Bootstrap du projet plex-playlist-rebuild
+- Spec rédigée, données source en place
