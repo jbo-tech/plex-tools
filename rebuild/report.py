@@ -122,40 +122,6 @@ def save_playlist_json_report(matches: list[MatchResult], title: str, rating_key
     return filepath
 
 
-def save_unresolved_csv(all_results: dict[str, list[MatchResult]], output_dir: Path) -> Path | None:
-    """Sauvegarde un CSV global des tracks non résolues."""
-    unresolved = [
-        (title, m)
-        for title, matches in all_results.items()
-        for m in matches
-        if m.matched_track is None
-    ]
-
-    if not unresolved:
-        return None
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filepath = output_dir / f"unresolved_{timestamp}.csv"
-
-    with open(filepath, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["Playlist", "Artiste", "Album", "Titre", "Fichier", "Méthode tentée", "Notes"])
-
-        for title, m in unresolved:
-            w.writerow([
-                title,
-                m.source.artist or "",
-                m.source.album or "",
-                m.source.title or "",
-                m.source.filepath or "",
-                m.method,
-                m.notes,
-            ])
-
-    return filepath
-
-
 def save_playlist_unresolved_csv(matches: list[MatchResult], title: str, rating_key: str, output_dir: Path) -> Path | None:
     """Sauvegarde un CSV des tracks non résolues d'une playlist."""
     unresolved = [m for m in matches if m.matched_track is None]

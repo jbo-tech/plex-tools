@@ -14,7 +14,6 @@ from .report import (
     save_json_report,
     save_playlist_json_report,
     save_playlist_unresolved_csv,
-    save_unresolved_csv,
 )
 
 
@@ -69,6 +68,7 @@ def main() -> None:
     all_results: dict[str, list] = {}
     total_resolved = 0
     total_tracks = 0
+    unresolved_csvs: list[Path] = []
 
     for path in playlist_files:
         title, rating_key, metadata = load_playlist(path)
@@ -96,6 +96,7 @@ def main() -> None:
         unresolved_csv = save_playlist_unresolved_csv(matches, title, rating_key, report_dir)
         if unresolved_csv:
             print(f"  Non résolus : {unresolved_csv}")
+            unresolved_csvs.append(unresolved_csv)
 
         if not args.report_only:
             result = rebuild_playlist(base_url, token, title, matches, dry_run=dry_run)
@@ -105,6 +106,7 @@ def main() -> None:
                 print(f"  → Skippée : {result['reason']}")
 
     pct = (total_resolved / total_tracks * 100) if total_tracks else 0
+    unresolved_count = sum(1 for ms in all_results.values() for m in ms if m.matched_track is None)
     print(f"\n{'=' * 50}")
     print(f"Total : {total_resolved}/{total_tracks} résolus ({pct:.0f}%)")
     print(f"Playlists : {len(all_results)}")
@@ -114,10 +116,10 @@ def main() -> None:
     report_path = save_json_report(all_results, Path("reports"))
     print(f"Rapport : {report_path}")
 
-    unresolved_path = save_unresolved_csv(all_results, Path("reports"))
-    if unresolved_path:
-        unresolved_count = sum(1 for ms in all_results.values() for m in ms if m.matched_track is None)
-        print(f"Non résolus : {unresolved_count} tracks → {unresolved_path}")
+    if unresolved_csvs:
+        print(f"Non résolus : {unresolved_count} tracks")
+        for p in unresolved_csvs:
+            print(f"  → {p}")
 
 
 if __name__ == "__main__":
