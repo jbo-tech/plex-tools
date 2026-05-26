@@ -80,7 +80,7 @@ Algorithme de réconciliation en cascade :
 4. **Métadonnées exactes** — artiste + album + titre + n° piste
 5. **Métadonnées fuzzy** — rattrape les variations de nommage
 
-Chaque exécution produit un rapport JSON dans `reports/`, ainsi qu'un CSV des tracks non résolues (`unresolved_*.csv`).
+Chaque exécution produit un rapport JSON par playlist dans `reports/` (`reconciliation_{ratingKey}_{nom}_{timestamp}.json`), un rapport global, et un CSV des tracks non résolues par playlist (`unresolved_{ratingKey}_{nom}_{timestamp}.csv`).
 
 ### Repair — Réparation des métadonnées
 

@@ -9,18 +9,25 @@ from config import load_credentials
 from .indexer import build_indexes
 from .reconciler import parse_source_track, reconcile
 from .rebuilder import rebuild_playlist
-from .report import print_playlist_report, save_json_report, save_unresolved_csv
+from .report import (
+    print_playlist_report,
+    save_json_report,
+    save_playlist_json_report,
+    save_playlist_unresolved_csv,
+    save_unresolved_csv,
+)
 
 
-def load_playlist(path: Path) -> tuple[str, list[dict]]:
-    """Charge un JSON de playlist exporté et retourne (titre, métadonnées)."""
+def load_playlist(path: Path) -> tuple[str, str, list[dict]]:
+    """Charge un JSON de playlist exporté et retourne (titre, ratingKey, métadonnées)."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     container = data["MediaContainer"]
     title = container["title"]
+    rating_key = container.get("ratingKey", "")
     metadata = container.get("Metadata", [])
-    return title, metadata
+    return title, rating_key, metadata
 
 
 def discover_playlists(playlist_dir: Path, filter_name: str | None = None) -> list[Path]:
@@ -64,7 +71,7 @@ def main() -> None:
     total_tracks = 0
 
     for path in playlist_files:
-        title, metadata = load_playlist(path)
+        title, rating_key, metadata = load_playlist(path)
         matches = [
             reconcile(
                 parse_source_track(m),
@@ -81,6 +88,14 @@ def main() -> None:
         total_tracks += len(matches)
 
         print_playlist_report(title, matches)
+
+        report_dir = Path("reports")
+        pl_report = save_playlist_json_report(matches, title, rating_key, report_dir)
+        print(f"  Rapport : {pl_report}")
+
+        unresolved_csv = save_playlist_unresolved_csv(matches, title, rating_key, report_dir)
+        if unresolved_csv:
+            print(f"  Non résolus : {unresolved_csv}")
 
         if not args.report_only:
             result = rebuild_playlist(base_url, token, title, matches, dry_run=dry_run)

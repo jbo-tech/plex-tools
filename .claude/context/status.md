@@ -4,9 +4,20 @@
 Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes.
 
 ## Focus actuel
-Module `repair/` terminé et exécuté en production. Module `rebuild/` enrichi avec rapport CSV des non-résolus. Prêt pour run complet rebuild sur toutes les playlists.
+Module `rebuild/` : les rapports produisent maintenant des fichiers par playlist (JSON + CSV non-résolus) avec `ratingKey` et nom dans le nom de fichier. Prêt pour run complet rebuild sur toutes les playlists.
 
 ## Log
+
+### 2026-05-26
+- Done :
+  - `load_playlist()` retourne aussi le `ratingKey` de la playlist (en plus du titre et metadata)
+  - Ajout `save_playlist_json_report()` et `save_playlist_unresolved_csv()` dans `report.py`
+  - Noms de fichiers formatés : `reconciliation_{ratingKey}_{nom}_{timestamp}.json` / `unresolved_{ratingKey}_{nom}_{timestamp}.csv`
+  - Rapports globaux conservés en parallèle des rapports par playlist
+- Next :
+  1. Dry-run complet rebuild sur les 31 playlists
+  2. Analyser rapport + CSV non-résolus, ajuster seuils fuzzy si besoin
+  3. Exécution réelle rebuild (`--execute`)
 
 ### 2026-05-24
 - Done :

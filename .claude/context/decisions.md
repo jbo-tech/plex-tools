@@ -58,6 +58,12 @@ Décisions techniques et leur contexte. Alimenté via `/retro`.
 **Contexte** : Opération irréversible sur ~109K items. Le rapport permet de vérifier et de rollback manuellement si nécessaire.
 **Date** : 2026-05-24
 
+### Rapports par playlist avec ratingKey dans le nom de fichier
+**Décision** : Produire un rapport JSON et un CSV par playlist (en plus du rapport global), avec `ratingKey` et nom de la playlist dans le nom de fichier.
+**Contexte** : Faciliter l'identification des rapports quand on traite plusieurs playlists. Le format `reconciliation_{ratingKey}_{nom}_{timestamp}.json` permet de retrouver immédiatement de quelle playlist il s'agit, même hors contexte.
+**Alternatives envisagées** : Rapport global seul avec timestamp (actuel) — pas assez identifiable. Ajout console dans les tracks (rejeté par l'utilisateur, c'est le nom de fichier qui compte).
+**Date** : 2026-05-26
+
 ### Dry-run par défaut
 **Décision** : `--execute` requis pour créer les playlists. Sans flag, dry-run + rapport.
 **Contexte** : Reconstruction destructive si faux positifs ; le rapport doit être validé d'abord.
