@@ -68,3 +68,9 @@ Décisions techniques et leur contexte. Alimenté via `/retro`.
 **Décision** : `--execute` requis pour créer les playlists. Sans flag, dry-run + rapport.
 **Contexte** : Reconstruction destructive si faux positifs ; le rapport doit être validé d'abord.
 **Date** : 2026-05-12
+
+### Rebuild incrémental (approche A : diff + ajout)
+**Décision** : Avant de créer une playlist, chercher par titre exact sur le serveur. Si elle existe, comparer les ratingKeys présents et n'ajouter que les manquants via `PUT /playlists/{id}/items`.
+**Contexte** : Relancer `rebuild --execute` dupliquait les playlists. L'approche incrémentale permet de relancer sans risque et de ne traiter que le delta.
+**Alternatives envisagées** : Approche B (supprimer + recréer) — plus simple mais perd l'ordre et les modifications manuelles de l'utilisateur.
+**Date** : 2026-06-01

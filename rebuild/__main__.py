@@ -100,8 +100,14 @@ def main() -> None:
 
         if not args.report_only:
             result = rebuild_playlist(base_url, token, title, matches, dry_run=dry_run)
+            already = result.get("already_present", 0)
+            to_add = result.get("to_add", 0)
+            if already or to_add:
+                print(f"  Incrémental : {already} déjà présentes, {to_add} à ajouter")
             if result.get("created"):
                 print("  → Playlist créée dans Plex")
+            elif result.get("updated"):
+                print(f"  → {to_add} tracks ajoutées à la playlist existante")
             elif result.get("skipped"):
                 print(f"  → Skippée : {result['reason']}")
 

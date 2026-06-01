@@ -4,9 +4,21 @@
 Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes.
 
 ## Focus actuel
-Module `rebuild/` : les rapports produisent maintenant des fichiers par playlist (JSON + CSV non-résolus) avec `ratingKey` et nom dans le nom de fichier. Prêt pour run complet rebuild sur toutes les playlists.
+Module `rebuild/` : mode incrémental implémenté. Le rebuilder détecte les playlists existantes et n'ajoute que les tracks manquantes. Prêt pour dry-run complet puis exécution.
 
 ## Log
+
+### 2026-06-01
+- Done :
+  - Mode incrémental dans `rebuild/rebuilder.py` : détection playlist existante par titre, diff des ratingKeys, ajout sélectif via `PUT /playlists/{id}/items`
+  - Nouvelles fonctions : `_find_playlist()`, `_get_playlist_track_keys()`, `_add_tracks_to_playlist()`, `_create_playlist()`
+  - Rapport enrichi dans `__main__.py` : affiche `already_present` / `to_add` par playlist
+  - 7 tests unitaires dans `tests/test_rebuilder.py` (dry-run + exécution, création + mise à jour + skip)
+  - 19 tests passent (12 reconciler existants + 7 rebuilder nouveaux)
+- Next :
+  1. Dry-run complet rebuild sur les 31 playlists (vérifier les compteurs incrémentaux)
+  2. Exécution réelle rebuild (`--execute`)
+  3. Relancer pour vérifier que le 2ᵉ run détecte 0 tracks à ajouter
 
 ### 2026-05-26
 - Done :

@@ -80,6 +80,8 @@ Algorithme de réconciliation en cascade :
 4. **Métadonnées exactes** — artiste + album + titre + n° piste
 5. **Métadonnées fuzzy** — rattrape les variations de nommage
 
+**Mode incrémental** : si une playlist du même nom existe déjà sur le serveur, seules les tracks manquantes sont ajoutées (`PUT /playlists/{id}/items`). On peut relancer `--execute` sans risque de doublons. Le rapport affiche le nombre de tracks déjà présentes vs. à ajouter.
+
 Chaque exécution produit un rapport JSON par playlist dans `reports/` (`reconciliation_{ratingKey}_{nom}_{timestamp}.json`), un rapport global, et un CSV des tracks non résolues par playlist (`unresolved_{ratingKey}_{nom}_{timestamp}.csv`).
 
 ### Repair — Réparation des métadonnées
@@ -114,7 +116,7 @@ plex-tools/
 │   ├── __main__.py        # CLI reconstruction
 │   ├── indexer.py         # Indexation bibliothèque (4 index)
 │   ├── reconciler.py      # Cascade de matching
-│   ├── rebuilder.py       # Création playlists via API
+│   ├── rebuilder.py       # Création/mise à jour incrémentale playlists via API
 │   └── report.py          # Rapport console + JSON + CSV non-résolus
 ├── repair/
 │   ├── __main__.py        # CLI réparation
