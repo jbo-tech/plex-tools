@@ -1,6 +1,6 @@
 # plex-tools
 
-Outils CLI pour Plex : export, téléchargement, reconstruction de playlists, réparation de métadonnées.
+Outils CLI pour Plex : export, téléchargement, reconstruction de playlists, réparation de métadonnées, déduplication et ajout de tracks.
 
 ## Commands
 
@@ -12,6 +12,10 @@ uv run python -m export.download        # Télécharger depuis Mega
 uv run python -m rebuild                # Reconstruire les playlists (dry-run)
 uv run python -m repair                 # Diagnostiquer les métadonnées manquantes (dry-run)
 uv run python -m repair --execute       # Appliquer les corrections
+uv run python -m dedup                  # Détecter les doublons (dry-run)
+uv run python -m dedup --execute        # Supprimer les doublons exacts intra-playlist
+uv run python -m adder --file list.txt --playlist "Name"  # Ajouter des tracks (dry-run)
+uv run python -m adder --file list.txt --playlist "Name" --execute  # Appliquer
 uv run pytest tests/ -v                 # Tests
 ```
 
@@ -28,6 +32,8 @@ uv run pytest tests/ -v                 # Tests
 - `export/` — playlists, library, download (scripts autonomes)
 - `rebuild/` — pipeline complet (indexer → reconciler → rebuilder → report)
 - `repair/` — diagnostic et réparation des métadonnées manquantes (scanner → fixer → report)
+- `dedup/` — détection de doublons (exacts, cross-playlist, near-duplicates, orphelins)
+- `adder/` — ajout de tracks depuis un fichier texte (parser → reconciler → API)
 - `check.py` — utilitaire simple (reste à la racine)
 
 ## Conventions

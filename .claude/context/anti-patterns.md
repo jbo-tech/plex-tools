@@ -25,3 +25,15 @@ Erreurs rencontrées et comment les éviter. Alimenté via `/retro`.
 **Cause** : Dans plexapi, `all()` retourne le type par défaut de la section (artistes pour une bibliothèque musicale).
 **Solution** : Spécifier `libtype='track'` ou, mieux, utiliser l'API HTTP avec `type=10`.
 **Date** : 2026-05-15
+
+### Tests qui patchent des imports supprimés
+**Problème** : Après refactoring de `rebuild/rebuilder.py` (suppression de `import requests`, remplacement par helpers de config.py), les tests échouaient avec `AttributeError: <module 'rebuild.rebuilder'> does not have the attribute 'requests'`.
+**Cause** : Les tests patchaient `rebuild.rebuilder.requests.get` etc., mais le module n'importait plus `requests` directement.
+**Solution** : Patcher les fonctions telles qu'elles sont importées dans le module sous test (`rebuild.rebuilder._find_playlist`, `rebuild.rebuilder.get_playlist_items`, etc.). Règle : toujours patcher "where it's used", pas "where it's defined".
+**Date** : 2026-06-14
+
+### Dead-zone entre fuzzy_threshold et min_confidence
+**Problème** : Avec `fuzzy_threshold=80` et `min_confidence=0.85`, les matches fuzzy entre 80 et 84 étaient acceptés par le reconciler mais rejetés par l'adder — ils tombaient dans "low_confidence" au lieu d'être soit confiants soit refusés.
+**Cause** : Deux seuils indépendants configurés à des valeurs divergentes créent une bande morte.
+**Solution** : Aligner les deux seuils (tous deux à 85 par défaut). Documenter le piège : abaisser `fuzzy_threshold` sans abaisser `min_confidence` crée une dead-zone.
+**Date** : 2026-06-14

@@ -37,7 +37,7 @@ Décisions techniques et leur contexte. Alimenté via `/retro`.
 **Date** : 2026-05-14
 
 ### Pas de .env, args CLI avec défauts
-**Décision** : Réglages projet en arguments CLI (--library, --playlist-dir, --output-dir).
+**Décision** : Réglages projet en arguments CLI (--library, --playlist, --output-dir).
 **Contexte** : Peu de réglages, défauts sensibles. Évite une dépendance inutile (python-dotenv).
 **Date** : 2026-05-14
 
@@ -74,3 +74,30 @@ Décisions techniques et leur contexte. Alimenté via `/retro`.
 **Contexte** : Relancer `rebuild --execute` dupliquait les playlists. L'approche incrémentale permet de relancer sans risque et de ne traiter que le delta.
 **Alternatives envisagées** : Approche B (supprimer + recréer) — plus simple mais perd l'ordre et les modifications manuelles de l'utilisateur.
 **Date** : 2026-06-01
+
+### Helpers Plex centralisés dans config.py
+**Décision** : Fonctions d'écriture Plex (`get_machine_id`, `build_playlist_uri`, `create_playlist`, `add_tracks_to_playlist`) et de lecture (`get_all_playlists`, `get_playlist_items`, `resolve_playlist`) dans `config.py` plutôt que dupliquées dans chaque module.
+**Contexte** : Le rebuilder avait ses propres helpers privés (`_find_playlist`, `_create_playlist`, etc.) qui dupliquaient la logique. `adder/` et `dedup/` ont besoin des mêmes opérations. Centraliser évite la divergence.
+**Alternatives envisagées** : Module `plex_api.py` séparé — prématuré, `config.py` fait office de couche d'accès partagée et la cohésion est suffisante.
+**Date** : 2026-06-14
+
+### resolve_playlist : ratingKey prioritaire si identifier est numérique
+**Décision** : Si `identifier.isdigit()`, chercher d'abord par `ratingKey`, puis fallback par titre. Sinon, recherche par titre uniquement.
+**Contexte** : Les ratingKeys sont numériques. Un utilisateur passant "12345" veut probablement l'ID, pas une playlist nommée "12345". Le fallback par titre permet de traiter les rares cas où un nombre est un vrai nom de playlist.
+**Date** : 2026-06-14
+
+### Seuils fuzzy alignés à 85
+**Décision** : `fuzzy_threshold=85` et `min_confidence=0.85` par défaut dans `adder/`. Un match fuzzy à 85+ est considéré confiant.
+**Contexte** : Si `fuzzy_threshold < min_confidence`, les matches entre les deux seuils tombent dans une dead-zone (acceptés par le reconciler mais rejetés par l'adder). Aligner évite ce piège.
+**Alternatives envisagées** : fuzzy_threshold=80 + min_confidence=85 (proposé initialement dans le scope, créait la dead-zone).
+**Date** : 2026-06-14
+
+### thefuzz[speedup] + cutoff score 30
+**Décision** : Dépendre de `thefuzz[speedup]` (python-Levenshtein binding C) et couper la recherche best-candidate en dessous d'un score de 30.
+**Contexte** : `_find_best_fuzzy_candidate` est O(n) sur la bibliothèque entière. Le binding C accélère le calcul de distance (~10x). Le cutoff 30 évite d'afficher des candidats absurdes.
+**Date** : 2026-06-14
+
+### Dedup : rapport JSON sauvegardé après exécution
+**Décision** : Le rapport JSON est écrit après l'éventuelle suppression, et contient un champ `execution_results` avec les compteurs réels.
+**Contexte** : Sauvegarder avant exécution puis récrire après serait confus. Un seul rapport post-hoc reflète l'état final.
+**Date** : 2026-06-14

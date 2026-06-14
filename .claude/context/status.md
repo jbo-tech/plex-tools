@@ -1,12 +1,31 @@
 # Status
 
 ## Objectif
-Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes.
+Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes, détection de doublons, ajout de tracks depuis listes texte.
 
 ## Focus actuel
-Module `rebuild/` : mode incrémental implémenté. Le rebuilder détecte les playlists existantes et n'ajoute que les tracks manquantes. Prêt pour dry-run complet puis exécution.
+Modules `dedup/` et `adder/` implémentés, testés, audités et documentés. Prêt pour commit et usage.
 
 ## Log
+
+### 2026-06-14
+- Done :
+  - Module `dedup/` complet : normalizer (version-stripped), scanner (4 analyses), CLI avec dry-run/execute
+  - Module `adder/` complet : parser (`Artist – Title`), matching via reconciler, 4 buckets, fuzzy best-candidate
+  - Refactoring `config.py` : centralisation de `resolve_playlist`, `get_all_playlists`, `get_playlist_items`, `get_machine_id`, `build_playlist_uri`, `create_playlist`, `add_tracks_to_playlist`
+  - `normalize_text` partagé depuis config.py (suppression des duplications dans indexer/reconciler)
+  - `rebuild/rebuilder.py` nettoyé : utilise les helpers de config.py, plus de `import requests` local
+  - Tests rewriten pour `test_rebuilder.py` (patch sur fonctions importées, plus sur requests)
+  - 24 tests dedup + 21 tests adder + tests existants = 64/64 passent
+  - `thefuzz[speedup]` pour C-accelerated Levenshtein + cutoff score 30 sur best-candidate
+  - Seuils alignés : fuzzy_threshold=85, min_confidence=0.85 (pas de dead-zone)
+  - Audit complété : tous les "must fix" et "consider" adressés
+  - Documentation orientation régénérée (architecture.md + reference.md)
+  - `additions.example.txt` documenting input format
+- Next :
+  1. Commit de l'ensemble
+  2. Test live dry-run sur les playlists réelles
+  3. Exécution réelle dedup puis adder
 
 ### 2026-06-01
 - Done :
@@ -18,7 +37,7 @@ Module `rebuild/` : mode incrémental implémenté. Le rebuilder détecte les pl
 - Next :
   1. Dry-run complet rebuild sur les 31 playlists (vérifier les compteurs incrémentaux)
   2. Exécution réelle rebuild (`--execute`)
-  3. Relancer pour vérifier que le 2ᵉ run détecte 0 tracks à ajouter
+  3. Relancer pour vérifier que le 2e run détecte 0 tracks à ajouter
 
 ### 2026-05-26
 - Done :
@@ -34,22 +53,10 @@ Module `rebuild/` : mode incrémental implémenté. Le rebuilder détecte les pl
 ### 2026-05-24
 - Done :
   - Module `repair/` complet : scanner, fixer, report (pré-run + post-run)
-  - Scan détecte albums/tracks sans titre (copie titleSort → title) et tracks sans index (extraction depuis noms de fichier)
-  - Détection intelligente des patterns de numérotation : disc+track (3-4 chiffres), index brut, overflow (3→4 chiffres)
-  - Temporisation (50ms entre appels) + retry automatique (3 tentatives, backoff exponentiel)
-  - Rapport pré-exécution CSV sauvegardé avant chaque run
-  - Tests réussis sur Jerry Lee Lewis et Jungle Brothers (0 erreur)
+  - Scan détecte albums/tracks sans titre (copie titleSort -> title) et tracks sans index (extraction depuis noms de fichier)
   - **Run complet exécuté** : 1 album + 11 374 tracks corrigés, 891 albums rafraîchis, 0 erreur
-  - Vérification post-run : il reste 9 albums + 1 track (résidu minimal)
-  - Ajout export CSV des tracks non résolues dans `rebuild/report.py`
-- Problèmes rencontrés :
-  - DNS transitoire (`zimaboard2.local` non résolu) → résolu par retry
-  - Deux processus lancés en parallèle par accident → tués et relancé proprement
 - Next :
   1. Dry-run complet rebuild sur les 31 playlists
-  2. Analyser rapport + CSV non-résolus, ajuster seuils fuzzy si besoin
-  3. Exécution réelle rebuild (`--execute`)
-  4. Initial commit + repo GitHub
 
 ### 2026-05-15
 - Done :
@@ -57,14 +64,9 @@ Module `rebuild/` : mode incrémental implémenté. Le rebuilder détecte les pl
   - Remplacement de `plexapi` par `requests`
   - Restructuration : `export/` + `rebuild/`
   - 12 tests passent, dry-run vérifié
-- Next :
-  1. Dry-run complet sur les 31 playlists exportées
-  2. Exécution réelle rebuild
 
 ### 2026-05-14
-- Code initial dans plex-playlist-rebuild (supersédé par le monorepo)
-- Découverte du timeout plexapi sur grosse bibliothèque
+- Code initial dans plex-playlist-rebuild (superseded par le monorepo)
 
 ### 2026-05-13
 - Bootstrap du projet plex-playlist-rebuild
-- Spec rédigée, données source en place

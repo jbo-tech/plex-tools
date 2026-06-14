@@ -1,6 +1,6 @@
 # plex-tools
 
-Outils CLI pour un serveur Plex : export de playlists, export de bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes.
+Outils CLI pour un serveur Plex : export de playlists, export de bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes, détection de doublons et ajout de tracks depuis des listes texte.
 
 ## Prérequis
 
@@ -102,6 +102,40 @@ Corrige les métadonnées manquantes dans la bibliothèque Plex :
 
 Produit un rapport pré-exécution (`repair_pre_run.csv`) et post-exécution (`repair_report.csv`) dans `reports/`.
 
+### Dedup — Détection de doublons
+
+```bash
+uv run python -m dedup                              # Dry-run (rapport)
+uv run python -m dedup --execute                    # Supprimer les doublons exacts intra-playlist
+uv run python -m dedup --playlist "Peak Time"       # Filtrer par nom ou ID
+uv run python -m dedup --fuzzy-threshold 85         # Seuil near-duplicates (défaut: 85)
+```
+
+4 analyses :
+1. **Doublons exacts** (même `ratingKey` ×N dans une playlist) — supprimables avec `--execute`
+2. **Overlap cross-playlist** (même track dans 2+ playlists) — rapport uniquement
+3. **Near-duplicates** (versions différentes d'un même morceau : remaster, radio edit…) — rapport uniquement
+4. **Orphelins** (fichier absent du disque) — rapport uniquement
+
+### Adder — Ajout de tracks depuis un fichier texte
+
+```bash
+uv run python -m adder --file list.txt --playlist "Peak Time"            # Dry-run
+uv run python -m adder --file list.txt --playlist 12345 --execute        # Ajout effectif
+uv run python -m adder --file list.txt --playlist "New" --execute        # Crée la playlist si inexistante
+uv run python -m adder --file list.txt --playlist "Peak Time" --min-confidence 0.80
+```
+
+Format d'entrée (`Artist – Title`, une par ligne) :
+
+```
+# Commentaire (ignoré)
+Daft Punk – Around The World
+Justice - D.A.N.C.E.
+```
+
+Le matching utilise le reconciler existant (cascade GUID → filepath → filename → metadata → fuzzy). 4 catégories en sortie : ajoutés, déjà présents, faible confiance, non trouvés (avec meilleur candidat fuzzy).
+
 ## Structure
 
 ```
@@ -123,6 +157,13 @@ plex-tools/
 │   ├── scanner.py         # Scan métadonnées manquantes
 │   ├── fixer.py           # Corrections via API PUT
 │   └── report.py          # Rapports pré/post-exécution
+├── dedup/
+│   ├── __main__.py        # CLI détection doublons
+│   ├── normalizer.py      # Normalisation version-stripped
+│   └── scanner.py         # 4 analyses (exacts, overlap, near-dups, orphelins)
+├── adder/
+│   ├── __main__.py        # CLI ajout de tracks
+│   └── parser.py          # Parse format Artist – Title
 ├── tests/
 ├── playlists/             # JSON exportés
 └── reports/               # Rapports de réconciliation
