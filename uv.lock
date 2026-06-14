@@ -137,7 +137,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "requests" },
-    { name = "thefuzz", specifier = ">=0.22.0" },
+    { name = "thefuzz", extras = ["speedup"], specifier = ">=0.22.0" },
 ]
 
 [package.metadata.requires-dev]

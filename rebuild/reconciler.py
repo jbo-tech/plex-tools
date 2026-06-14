@@ -1,22 +1,12 @@
 """Moteur de réconciliation en cascade : GUID → filepath → filename → metadata → fuzzy."""
 
 import os
-import re
-import unicodedata
 from dataclasses import dataclass
 
 from thefuzz import fuzz
 
+from config import normalize_text as _normalize
 from .indexer import PlexIndexes
-
-
-def _normalize(text: str | None) -> str:
-    if not text:
-        return ""
-    text = unicodedata.normalize("NFC", text)
-    text = text.lower().strip()
-    text = re.sub(r"\s+", " ", text)
-    return text
 
 
 @dataclass

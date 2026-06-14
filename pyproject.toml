@@ -5,7 +5,7 @@ description = "Outils CLI pour Plex : export playlists, export bibliothèque, re
 requires-python = ">=3.12"
 dependencies = [
     "requests",
-    "thefuzz>=0.22.0",
+    "thefuzz[speedup]>=0.22.0",
 ]
 
 [dependency-groups]

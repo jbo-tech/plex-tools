@@ -1,22 +1,10 @@
 """Indexation de la bibliothèque Plex via API HTTP : construit 4 index pour la réconciliation."""
 
 import os
-import re
-import unicodedata
 from dataclasses import dataclass, field
 
 import requests
-from config import plex_headers
-
-
-def _normalize(text: str | None) -> str:
-    """Normalise pour le matching : NFC, lowercase, espaces condensés, strip."""
-    if not text:
-        return ""
-    text = unicodedata.normalize("NFC", text)
-    text = text.lower().strip()
-    text = re.sub(r"\s+", " ", text)
-    return text
+from config import plex_headers, normalize_text as _normalize
 
 
 @dataclass

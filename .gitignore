@@ -5,3 +5,4 @@ __pycache__/
 reports/
 playlists/
 .remember/
+.claude/delegate-auto

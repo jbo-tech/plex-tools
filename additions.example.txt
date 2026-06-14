@@ -1,0 +1,27 @@
+# Format d'entrée pour `python -m adder`
+# Une track par ligne : Artist – Title
+# Séparateurs acceptés : « – » (tiret cadratin) ou « - » (trait d'union) entourés d'espaces
+# Les lignes vides et les lignes commençant par # sont ignorées.
+#
+# Astuce : pour convertir une liste brute (avec commentaires, sections, etc.)
+# en ce format, passez-la dans un LLM bon marché avec ce prompt :
+#   "Extrais uniquement les paires Artist – Title, une par ligne, sans commentaires."
+
+Purple Disco Machine – Hypnotized
+Shakedown – At Night
+Tensnake – Coma Cat
+SebastiAn – Love In Motion (feat. Mayer Hawthorne)
+Parcels – Overnight
+Hot Chip – Over And Over
+The Rapture – House of Jealous Lovers
+Franz Ferdinand – Take Me Out (The DFA Remix)
+LCD Soundsystem – Someone Great
+Friendly Fires – Kiss Of Life
+Vitalic – Poison
+Boys Noize – Jeffer
+The Chemical Brothers – Galvanize
+Justice – DVNO
+Bomba Estéreo – Fuego
+Major Lazer – Pon De Floor
+M.I.A. – Paper Planes
+The Avener – Fade Out Lines
