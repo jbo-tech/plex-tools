@@ -112,7 +112,7 @@ uv run python -m dedup --fuzzy-threshold 85         # Seuil near-duplicates (dé
 ```
 
 4 analyses :
-1. **Doublons exacts** (même `ratingKey` ×N dans une playlist) — supprimables avec `--execute`
+1. **Doublons exacts** (même `ratingKey` ×N dans une playlist) — supprimables avec `--execute`. Conserve la track avec le meilleur bitrate (moins de compression) ; fallback première occurrence si égalité.
 2. **Overlap cross-playlist** (même track dans 2+ playlists) — rapport uniquement
 3. **Near-duplicates** (versions différentes d'un même morceau : remaster, radio edit…) — rapport uniquement
 4. **Orphelins** (fichier absent du disque) — rapport uniquement

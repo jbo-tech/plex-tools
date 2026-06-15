@@ -4,9 +4,22 @@
 Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes, détection de doublons, ajout de tracks depuis listes texte.
 
 ## Focus actuel
-Modules `dedup/` et `adder/` implémentés, testés, audités et documentés. Prêt pour commit et usage.
+Amélioration continue — critère de sélection bitrate pour le dédoublonnage, commits en attente.
 
 ## Log
+
+### 2026-06-15
+- Done :
+  - `find_exact_duplicates()` modifié : sélection par bitrate (meilleur = conservé) au lieu de "première occurrence"
+  - Helpers `_get_bitrate()` et `_pick_best_quality()` dans `dedup/scanner.py`
+  - Fallback première occurrence si bitrates égaux ou absents
+  - Fixture `_make_track` enrichie (paramètre `bitrate`)
+  - 5 nouveaux tests (keep_highest_bitrate, tie→first, missing→first, mixed, multi-group)
+  - 69/69 tests passent
+- Next :
+  1. Commit du changement bitrate
+  2. Test live dry-run dedup sur les playlists réelles
+  3. Exécution réelle dedup (--execute)
 
 ### 2026-06-14
 - Done :

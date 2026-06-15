@@ -1,6 +1,6 @@
 ---
-generated_from_commit: 0fe3d36
-generated_on: 2026-06-14
+generated_from_commit: a7c0d23
+generated_on: 2026-06-15
 ---
 
 # Architecture — plex-tools
@@ -13,10 +13,10 @@ Suite d'outils CLI pour gérer une bibliothèque musicale Plex : exporter des do
 
 Pour comprendre le système :
 
-1. `config.py` — le socle partagé (credentials, helpers HTTP, résolution playlist)
+1. `config.py` — le socle partagé (credentials, helpers HTTP, résolution playlist, création/ajout playlist)
 2. `rebuild/indexer.py` → `rebuild/reconciler.py` — le moteur central (indexation + matching en cascade)
 3. `rebuild/__main__.py` — comment le pipeline s'orchestre
-4. `dedup/normalizer.py` — la logique de normalisation version-stripped (seul ajout algorithmique post-reconciler)
+4. `dedup/normalizer.py` → `dedup/scanner.py` — normalisation version-stripped et analyse de doublons (dont sélection par bitrate)
 5. Les autres modules suivent le même pattern : scan → action → report
 
 ## Composants
@@ -35,7 +35,7 @@ Pour comprendre le système :
 | `repair/fixer` | Applique les corrections via PUT API Plex (throttle + retry) |
 | `repair/report` | Rapports pré/post-exécution |
 | `dedup/normalizer` | Normalisation version-stripped (retire remasters, mixes, éditions) |
-| `dedup/scanner` | 4 analyses : doublons exacts, overlap, near-duplicates, orphelins |
+| `dedup/scanner` | 4 analyses + sélection par bitrate (_pick_best_quality) pour les doublons exacts |
 | `dedup/__main__` | CLI dedup, suppression des doublons exacts avec `--execute` |
 | `adder/parser` | Parse le format `Artist – Title` (commentaires, blanks, dedup) |
 | `adder/__main__` | CLI adder, matching via reconciler, ajout à playlist |
@@ -90,6 +90,7 @@ graph TD
 **Points d'extension** :
 - Nouveau module CLI : créer `module/__main__.py`, importer depuis `config.py` et éventuellement `rebuild/reconciler.py`
 - Nouveaux critères de matching : étendre la cascade dans `reconciler.py` (ajouter une étape entre metadata et fuzzy, par exemple)
+- Nouveaux critères de sélection pour la déduplication : étendre `_pick_best_quality()` dans `dedup/scanner.py`
 - Nouveaux rapports : suivre le pattern de `rebuild/report.py` (console + JSON + CSV)
 
 **Ce qu'il ne faut pas toucher** :

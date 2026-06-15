@@ -9,8 +9,17 @@ from dedup.scanner import find_exact_duplicates
 # --- Fixtures ---
 
 
-def _make_track(rating_key, title, artist="Artist", playlist_item_id=None, media=None):
-    """Crée un dict track simulant la réponse API Plex."""
+def _make_track(rating_key, title, artist="Artist", playlist_item_id=None, media=None, bitrate=None):
+    """Crée un dict track simulant la réponse API Plex.
+
+    Args:
+        rating_key: identifiant unique de la track.
+        title: titre.
+        artist: artiste.
+        playlist_item_id: identifiant dans la playlist.
+        media: dict Media complet (prioritaire sur bitrate).
+        bitrate: bitrate audio en bps (raccourci, ignoré si media est fourni).
+    """
     track = {
         "ratingKey": str(rating_key),
         "title": title,
@@ -23,6 +32,8 @@ def _make_track(rating_key, title, artist="Artist", playlist_item_id=None, media
         track["playlistItemID"] = playlist_item_id
     if media is not None:
         track["Media"] = media
+    elif bitrate is not None:
+        track["Media"] = [{"bitrate": bitrate, "Part": [{"file": f"/music/{title}.flac"}]}]
     else:
         track["Media"] = [{"Part": [{"file": f"/music/{title}.flac"}]}]
     return track
@@ -177,3 +188,75 @@ class TestFindExactDuplicates:
         assert len(result) == 2
         keys = {r["ratingKey"] for r in result}
         assert keys == {"1", "2"}
+
+    def test_keep_highest_bitrate(self):
+        """Conserve la track avec le bitrate le plus élevé."""
+        items = [
+            _make_track(1, "Track A", playlist_item_id=10, bitrate=128000),
+            _make_track(1, "Track A", playlist_item_id=11, bitrate=320000),
+            _make_track(1, "Track A", playlist_item_id=12, bitrate=256000),
+        ]
+        result = find_exact_duplicates(items)
+        assert len(result) == 1
+        # La 2e occurrence (index 1) a le meilleur bitrate
+        assert result[0]["keep_index"] == 1
+        assert result[0]["remove_indices"] == [0, 2]
+        assert result[0]["bitrate"] == 320000
+
+    def test_bitrate_tie_falls_back_to_first(self):
+        """En cas d'égalité de bitrate, conserve la première occurrence."""
+        items = [
+            _make_track(1, "Track A", playlist_item_id=10, bitrate=320000),
+            _make_track(1, "Track A", playlist_item_id=11, bitrate=320000),
+        ]
+        result = find_exact_duplicates(items)
+        assert len(result) == 1
+        assert result[0]["keep_index"] == 0
+        assert result[0]["remove_indices"] == [1]
+
+    def test_missing_bitrate_falls_back_to_first(self):
+        """Si le bitrate est absent, conserve la première occurrence."""
+        items = [
+            _make_track(1, "Track A", playlist_item_id=10),
+            _make_track(1, "Track A", playlist_item_id=11),
+        ]
+        result = find_exact_duplicates(items)
+        assert len(result) == 1
+        assert result[0]["keep_index"] == 0
+        assert result[0]["remove_indices"] == [1]
+
+    def test_mixed_bitrate_some_missing(self):
+        """Certaines tracks ont un bitrate, d'autres non — garde le bitrate max."""
+        items = [
+            _make_track(1, "Track A", playlist_item_id=10),             # pas de bitrate → 0
+            _make_track(1, "Track A", playlist_item_id=11, bitrate=192000),
+        ]
+        result = find_exact_duplicates(items)
+        assert len(result) == 1
+        # La 2e (index 1) a le bitrate le plus élevé
+        assert result[0]["keep_index"] == 1
+        assert result[0]["remove_indices"] == [0]
+
+    def test_keep_highest_bitrate_with_different_tracks(self):
+        """Deux groupes de doublons, chacun avec son propre gagnant bitrate."""
+        items = [
+            _make_track(1, "Track A", playlist_item_id=10, bitrate=128000),
+            _make_track(2, "Track B", playlist_item_id=11, bitrate=320000),
+            _make_track(1, "Track A", playlist_item_id=12, bitrate=320000),
+            _make_track(2, "Track B", playlist_item_id=13, bitrate=192000),
+        ]
+        result = find_exact_duplicates(items)
+        assert len(result) == 2
+
+        dup_a = next(r for r in result if r["ratingKey"] == "1")
+        dup_b = next(r for r in result if r["ratingKey"] == "2")
+
+        # Track A : bitrate 128000 (idx 0) vs 320000 (idx 2) → garde idx 2
+        assert dup_a["keep_index"] == 2
+        assert dup_a["remove_indices"] == [0]
+        assert dup_a["bitrate"] == 320000
+
+        # Track B : bitrate 320000 (idx 1) vs 192000 (idx 3) → garde idx 1
+        assert dup_b["keep_index"] == 1
+        assert dup_b["remove_indices"] == [3]
+        assert dup_b["bitrate"] == 320000

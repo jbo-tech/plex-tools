@@ -97,6 +97,12 @@ Décisions techniques et leur contexte. Alimenté via `/retro`.
 **Contexte** : `_find_best_fuzzy_candidate` est O(n) sur la bibliothèque entière. Le binding C accélère le calcul de distance (~10x). Le cutoff 30 évite d'afficher des candidats absurdes.
 **Date** : 2026-06-14
 
+### Sélection par bitrate pour la déduplication exacte
+**Décision** : Dans `find_exact_duplicates()`, conserver la track avec le bitrate le plus élevé (moins de compression) plutôt que la première occurrence dans la playlist.
+**Contexte** : Quand un même morceau apparaît plusieurs fois dans une playlist (même `ratingKey`), le premier ajouté n'est pas nécessairement la meilleure version. Le bitrate est un critère objectif de qualité audio. En cas d'égalité, fallback sur la première occurrence.
+**Alternatives envisagées** : Première occurrence seulement (comportement précédent) — simple mais peut conserver un MP3 128kbps alors qu'un FLAC est présent. Codec ou canaux comme critère secondaire — pas nécessaire, le bitrate suffit comme proxy de qualité.
+**Date** : 2026-06-15
+
 ### Dedup : rapport JSON sauvegardé après exécution
 **Décision** : Le rapport JSON est écrit après l'éventuelle suppression, et contient un champ `execution_results` avec les compteurs réels.
 **Contexte** : Sauvegarder avant exécution puis récrire après serait confus. Un seul rapport post-hoc reflète l'état final.

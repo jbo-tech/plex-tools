@@ -5,8 +5,50 @@ from collections import defaultdict
 from .normalizer import version_stripped_key
 
 
+def _get_bitrate(item: dict) -> int | None:
+    """Extrait le bitrate audio d'un item de playlist Plex (bps).
+
+    Retourne None si l'information n'est pas disponible.
+    """
+    media = item.get("Media", [])
+    if media:
+        br = media[0].get("bitrate")
+        if br:
+            return int(br)
+    return None
+
+
+def _pick_best_quality(playlist_items: list[dict], indices: list[int]) -> int:
+    """Sélectionne l'index avec le meilleur bitrate parmi les doublons.
+
+    Critères (par ordre de priorité) :
+    1. Bitrate le plus élevé (moins de compression)
+    2. Première occurrence dans la playlist (ordre actuel)
+
+    Args:
+        playlist_items: liste complète des items de la playlist.
+        indices: indices des occurrences du même ratingKey.
+
+    Returns:
+        L'index de l'item à conserver.
+    """
+    best_idx = indices[0]
+    best_bitrate = _get_bitrate(playlist_items[best_idx]) or 0
+
+    for idx in indices[1:]:
+        bitrate = _get_bitrate(playlist_items[idx]) or 0
+        if bitrate > best_bitrate:
+            best_bitrate = bitrate
+            best_idx = idx
+
+    return best_idx
+
+
 def find_exact_duplicates(playlist_items: list[dict]) -> list[dict]:
     """Trouve les doublons exacts (même ratingKey) au sein d'une playlist.
+
+    Pour chaque groupe, conserve l'entrée avec le bitrate le plus élevé
+    (moins de compression). En cas d'égalité, conserve la première occurrence.
 
     Retourne la liste des groupes de doublons avec indices à supprimer.
     """
@@ -21,14 +63,20 @@ def find_exact_duplicates(playlist_items: list[dict]) -> list[dict]:
     for rk, indices in by_key.items():
         if len(indices) < 2:
             continue
-        item = playlist_items[indices[0]]
+
+        # Sélectionner le meilleur : bitrate, puis première occurrence
+        keep_index = _pick_best_quality(playlist_items, indices)
+        remove_indices = [i for i in indices if i != keep_index]
+        item = playlist_items[keep_index]
+
         duplicates.append({
             "ratingKey": rk,
             "title": item.get("title", ""),
             "artist": item.get("grandparentTitle", ""),
             "occurrences": len(indices),
-            "keep_index": indices[0],
-            "remove_indices": indices[1:],
+            "bitrate": _get_bitrate(item),
+            "keep_index": keep_index,
+            "remove_indices": remove_indices,
         })
 
     return duplicates
