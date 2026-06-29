@@ -107,3 +107,21 @@ Décisions techniques et leur contexte. Alimenté via `/retro`.
 **Décision** : Le rapport JSON est écrit après l'éventuelle suppression, et contient un champ `execution_results` avec les compteurs réels.
 **Contexte** : Sauvegarder avant exécution puis récrire après serait confus. Un seul rapport post-hoc reflète l'état final.
 **Date** : 2026-06-14
+
+### Adder consomme directement le CSV `unresolved` de rebuild
+**Décision** : Étendre `adder` pour lire le CSV `unresolved` (auto-détection par extension `.csv`) plutôt qu'un convertisseur séparé. La playlist est lue dans la colonne `Playlist` (groupement par playlist, index construit une seule fois) ; `--playlist` devient optionnel et sert d'override.
+**Contexte** : Le CSV porte déjà la playlist par ligne et l'album — un convertisseur vers le format texte perdrait ces infos et imposerait de retaper le nom. Boucler rebuild → adder permet de réinjecter les non-résolues après ajout en bibliothèque.
+**Alternatives envisagées** : Script convertisseur CSV → texte (perd playlist + album) ; nouveau sous-module dédié (duplique toute la logique de matching/ajout).
+**Date** : 2026-06-29
+
+### Adder : pas de création de playlist par défaut (--create opt-in)
+**Décision** : Par défaut, l'adder n'ajoute que dans des playlists **existantes**. Une playlist introuvable est ignorée avec avertissement. La création nécessite `--create` explicite.
+**Contexte** : Directive utilisateur explicite (« il ne faut pas que cela crée une nouvelle playlist »). Le risque : `resolve_playlist` (match exact) échoue sur un nom légèrement différent → duplication silencieuse. Le défaut sûr protège aussi l'import texte.
+**Alternatives envisagées** : Garder la création auto (comportement précédent) ; flag `--no-create` (mais le défaut resterait dangereux).
+**Date** : 2026-06-29
+
+### Album du CSV passé au reconciler, fallback intrinsèque
+**Décision** : Passer l'album du CSV au reconciler (était `None`), sans second passage « sans album ».
+**Contexte** : La cascade fournit déjà le fallback : l'étape « metadata exacte » utilise la clé `(artist, album, title, track_number)` ; le CSV n'ayant pas de numéro de piste (`None`), cette étape matche rarement, et la recherche tombe sur le fuzzy qui ne compare que `artist + title` (album ignoré). Passer l'album est donc strictement additif — il peut ajouter un match exact, jamais en bloquer un.
+**Alternatives envisagées** : Double passage explicite (avec puis sans album) — redondant vu la cascade ; modifier le reconciler pour ignorer `track_number` quand absent — changement plus large, non retenu pour l'instant.
+**Date** : 2026-06-29

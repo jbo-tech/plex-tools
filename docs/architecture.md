@@ -1,6 +1,6 @@
 ---
-generated_from_commit: a7c0d23
-generated_on: 2026-06-15
+generated_from_commit: 73584c9
+generated_on: 2026-06-29
 ---
 
 # Architecture — plex-tools
@@ -17,7 +17,8 @@ Pour comprendre le système :
 2. `rebuild/indexer.py` → `rebuild/reconciler.py` — le moteur central (indexation + matching en cascade)
 3. `rebuild/__main__.py` — comment le pipeline s'orchestre
 4. `dedup/normalizer.py` → `dedup/scanner.py` — normalisation version-stripped et analyse de doublons (dont sélection par bitrate)
-5. Les autres modules suivent le même pattern : scan → action → report
+5. `adder/__main__.py` — réutilise indexer + reconciler ; ferme la boucle avec rebuild (réinjecte les non-résolues)
+6. Les autres modules suivent le même pattern : scan → action → report
 
 ## Composants
 
@@ -37,8 +38,8 @@ Pour comprendre le système :
 | `dedup/normalizer` | Normalisation version-stripped (retire remasters, mixes, éditions) |
 | `dedup/scanner` | 4 analyses + sélection par bitrate (_pick_best_quality) pour les doublons exacts |
 | `dedup/__main__` | CLI dedup, suppression des doublons exacts avec `--execute` |
-| `adder/parser` | Parse le format `Artist – Title` (commentaires, blanks, dedup) |
-| `adder/__main__` | CLI adder, matching via reconciler, ajout à playlist |
+| `adder/parser` | Parse le format texte `Artist – Title` **et** le CSV `unresolved` de rebuild (Playlist/Artiste/Album/Titre), dedup |
+| `adder/__main__` | CLI adder : groupe par playlist, matching via reconciler, ajout aux playlists **existantes** (création opt-in `--create`) |
 | `check.py` | Vérification rapide de la connexion au serveur |
 
 ## Flux de données
@@ -61,6 +62,7 @@ graph TD
         REBUILD --> RECONCILER
         RECONCILER -->|MatchResults| REBUILDER[rebuilder]
         REBUILDER -->|PUT/POST| PLEX
+        RECONCILER -->|non-résolues| CSV[unresolved_*.csv]
     end
 
     subgraph Dedup
@@ -72,10 +74,11 @@ graph TD
 
     subgraph Adder
         TXT[additions.txt] --> PARSER[adder/parser]
+        CSV -->|retraitement| PARSER
         PARSER --> ADDER[adder/__main__]
         INDEXER -->|PlexIndexes| ADDER
         RECONCILER -->|reconcile| ADDER
-        ADDER -->|PUT/POST| PLEX
+        ADDER -->|PUT/POST playlists existantes| PLEX
     end
 
     subgraph Repair
@@ -97,3 +100,4 @@ graph TD
 - L'API Plex est consommée en HTTP direct partout — ne pas introduire `plexapi` (timeouts sur 453k tracks)
 - Le reconciler est le moteur partagé — ne pas dupliquer la logique de matching dans les modules consommateurs
 - Les credentials passent par `config.toml` — ne pas ajouter de `.env` ou variables d'environnement
+- `adder` n'ajoute que dans des playlists existantes par défaut (création via `--create`) — ne pas réintroduire de création silencieuse en fallback d'une résolution ratée

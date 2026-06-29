@@ -122,19 +122,31 @@ uv run python -m dedup --fuzzy-threshold 85         # Seuil near-duplicates (dé
 ```bash
 uv run python -m adder --file list.txt --playlist "Peak Time"            # Dry-run
 uv run python -m adder --file list.txt --playlist 12345 --execute        # Ajout effectif
-uv run python -m adder --file list.txt --playlist "New" --execute        # Crée la playlist si inexistante
+uv run python -m adder --file list.txt --playlist "New" --create --execute  # Crée la playlist si inexistante
 uv run python -m adder --file list.txt --playlist "Peak Time" --min-confidence 0.80
+uv run python -m adder --file reports/unresolved_123_Name.csv            # Retraiter un CSV unresolved de rebuild
 ```
 
-Format d'entrée (`Artist – Title`, une par ligne) :
+Deux formats d'entrée, détectés par l'extension :
 
-```
-# Commentaire (ignoré)
-Daft Punk – Around The World
-Justice - D.A.N.C.E.
-```
+- **Texte** (`Artist – Title`, une par ligne) — `--playlist` obligatoire :
 
-Le matching utilise le reconciler existant (cascade GUID → filepath → filename → metadata → fuzzy). 4 catégories en sortie : ajoutés, déjà présents, faible confiance, non trouvés (avec meilleur candidat fuzzy).
+  ```
+  # Commentaire (ignoré)
+  Daft Punk – Around The World
+  Justice - D.A.N.C.E.
+  ```
+
+- **CSV `unresolved`** produit par `rebuild` — la playlist est lue dans la colonne `Playlist`
+  (un même fichier peut couvrir plusieurs playlists ; `--playlist` force alors une cible unique).
+  Permet de réinjecter les tracks « non résolues » une fois ajoutées à la bibliothèque.
+
+**Sécurité** : par défaut, l'adder n'ajoute **que** dans des playlists existantes. Une playlist
+introuvable est ignorée (avec avertissement), jamais recréée — `--create` est requis pour en créer une.
+
+Le matching utilise le reconciler existant (cascade GUID → filepath → filename → metadata → fuzzy ;
+l'album du CSV alimente l'étape metadata, le fuzzy reste sur artist+title). 4 catégories en sortie :
+ajoutés, déjà présents, faible confiance, non trouvés (avec meilleur candidat fuzzy).
 
 ## Structure
 

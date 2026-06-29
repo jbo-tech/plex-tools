@@ -37,3 +37,9 @@ Erreurs rencontrées et comment les éviter. Alimenté via `/retro`.
 **Cause** : Deux seuils indépendants configurés à des valeurs divergentes créent une bande morte.
 **Solution** : Aligner les deux seuils (tous deux à 85 par défaut). Documenter le piège : abaisser `fuzzy_threshold` sans abaisser `min_confidence` crée une dead-zone.
 **Date** : 2026-06-14
+
+### Création silencieuse de playlist sur résolution échouée
+**Problème** : L'adder créait une nouvelle playlist dès que `resolve_playlist` ne trouvait pas la cible. Avec le CSV `unresolved` (nom de playlist lu dans le fichier), une légère différence de nom → duplication silencieuse d'une playlist existante.
+**Cause** : `resolve_playlist` fait un match **exact**, et la branche `else` enchaînait directement sur `create_playlist`. Un échec de résolution était traité comme « la playlist n'existe pas » au lieu de « je n'ai pas su la retrouver ».
+**Solution** : Rendre la création **opt-in** (`--create`). Par défaut, une playlist introuvable est **ignorée avec avertissement**, jamais recréée. Règle générale : une opération créatrice/destructrice ne doit pas se déclencher en fallback d'une recherche ratée.
+**Date** : 2026-06-29

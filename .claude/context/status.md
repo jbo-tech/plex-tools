@@ -4,9 +4,24 @@
 Monorepo d'outils CLI Plex : export playlists, export bibliothèque, téléchargement Mega, reconstruction de playlists après reset de BDD, réparation de métadonnées manquantes, détection de doublons, ajout de tracks depuis listes texte.
 
 ## Focus actuel
-Amélioration continue — critère de sélection bitrate pour le dédoublonnage, commits en attente.
+Boucle rebuild → adder : retraiter les tracks « non résolues » de rebuild une fois ajoutées à la bibliothèque, sans créer de playlist parasite.
 
 ## Log
+
+### 2026-06-29
+- Done :
+  - `adder` accepte le CSV `unresolved` de `rebuild` (auto-détection par extension `.csv`)
+  - `adder/parser.py` : `parse_unresolved_csv()` (colonnes Playlist/Artiste/Album/Titre, album vide → None, lignes sans playlist/titre ignorées, ValueError si colonne obligatoire absente) + `deduplicate_csv_entries()` (clé (playlist, artist, title), conserve 1re occurrence + album)
+  - `adder/__main__.py` refactoré : `_build_groups()` (groupe par playlist, index construit une seule fois) + `_process_playlist()` ; rapport JSON par playlist (`add_<Playlist>_<ts>.json`) + total global si plusieurs
+  - `--playlist` devient optionnel : obligatoire pour le texte, lu dans la colonne pour le CSV (override possible)
+  - Album passé au reconciler (était None) ; le fallback « sans album » est intrinsèque à la cascade (le fuzzy ignore l'album)
+  - **Garde-fou** : par défaut l'adder n'ajoute QUE dans des playlists existantes ; playlist introuvable → ignorée avec avertissement, jamais recréée. Flag `--create` pour rétablir la création (opt-in)
+  - 9 nouveaux tests (parsing CSV + dédup). 77/77 passent
+  - CLAUDE.md + README.md mis à jour
+- Next :
+  1. Tester sur un vrai CSV `unresolved` en dry-run, puis `--execute`
+  2. Commit de l'ensemble (changements adder en attente + bitrate dedup encore non committé)
+  3. Vérifier que le nom de playlist du CSV matche bien (resolve_playlist = match exact)
 
 ### 2026-06-15
 - Done :

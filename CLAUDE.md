@@ -16,6 +16,7 @@ uv run python -m dedup                  # Détecter les doublons (dry-run)
 uv run python -m dedup --execute        # Supprimer les doublons exacts intra-playlist
 uv run python -m adder --file list.txt --playlist "Name"  # Ajouter des tracks (dry-run)
 uv run python -m adder --file list.txt --playlist "Name" --execute  # Appliquer
+uv run python -m adder --file reports/unresolved_123_Name.csv  # Retraiter un CSV unresolved de rebuild (playlist lue dans le CSV)
 uv run pytest tests/ -v                 # Tests
 ```
 

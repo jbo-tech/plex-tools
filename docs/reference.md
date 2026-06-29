@@ -1,6 +1,6 @@
 ---
-generated_from_commit: a7c0d23
-generated_on: 2026-06-15
+generated_from_commit: 73584c9
+generated_on: 2026-06-29
 ---
 
 # Référence — plex-tools
@@ -9,7 +9,7 @@ generated_on: 2026-06-15
 
 ### Décisions non appliquées
 
-Aucune — toutes les décisions enregistrées dans `decisions.md` sont en vigueur dans le code. La décision « Sélection par bitrate pour la déduplication exacte » (2026-06-15) est implémentée dans `dedup/scanner.py`.
+Aucune — toutes les décisions enregistrées dans `decisions.md` sont en vigueur dans le code. En particulier les décisions du 2026-06-29 (adder consomme le CSV `unresolved` ; pas de création par défaut ; album passé au reconciler) sont implémentées dans `adder/parser.py` et `adder/__main__.py`.
 
 ### Divergences
 
@@ -20,6 +20,7 @@ Aucune divergence identifiée entre les décisions et le code.
 | # | Fichier | Question à résoudre |
 |---|---------|---------------------|
 | 1 | `dedup/normalizer.py` | [⚠ drift: logique de normalisation isolée](#d1-normalisation-version-stripped-sans-décision) — La liste des qualificatifs à retirer (Remastered, Original Mix, Extended, etc.) est codée en dur. Aucune décision ne documente cette liste ni le choix de préserver `feat.` mais pas `Live`. |
+| 2 | `rebuild/rebuilder.py:66` | [⚠ drift: asymétrie de création](#d4-asymetrie-creation-playlist) — `rebuild` crée une playlist inexistante **sans opt-in**, alors qu'`adder` exige désormais `--create`. Intentionnel (rebuild reconstruit après reset) mais non tracé. Question : faut-il aligner le principe « défaut sûr » sur rebuild aussi ? |
 
 ### Dette connue
 
@@ -27,6 +28,7 @@ Aucune divergence identifiée entre les décisions et le code.
 |---|-------------|--------------------------|
 | D1 | `check.py` | [⚠ debt: script non-modulaire](#d2-check-py-non-modulaire) — Pas de `main()`, le code s'exécute à l'import. Empêche la réutilisation. |
 | D2 | `rebuild/rebuilder.py:72` | [⚠ debt: _find_playlist isolé](#d3-find-playlist-non-partagé) — `_find_playlist` fait un `import requests` local et duplique la logique de `resolve_playlist` (sans le support ratingKey). Devrait utiliser `resolve_playlist` de `config.py`. |
+| D3 | `adder/__main__.py` + `rebuild/report.py` | [⚠ debt: `_safe_name` dupliqué](#d5-safe-name-duplique) — Deux implémentations proches de nettoyage de nom de fichier (une dans chaque module). Candidat à factoriser dans `config.py`. |
 
 ### Docs existants — verdicts
 
@@ -101,6 +103,8 @@ GUID → filepath → filename (+ durée si ambigu) → metadata exacte → fuzz
 
 ⚠ debt: <a id="d3-find-playlist-non-partagé"></a> `rebuilder._find_playlist` duplique partiellement `resolve_playlist` (recherche par titre uniquement, sans support ratingKey). Mineur — le rebuilder opère toujours par titre (source = JSON exporté).
 
+⚠ drift: <a id="d4-asymetrie-creation-playlist"></a> `rebuild_playlist` crée une playlist inexistante sans opt-in (`create_playlist`, ligne 66), alors qu'`adder` exige `--create` depuis 2026-06-29. Intentionnel — rebuild sert précisément à recréer les playlists après un reset de BDD — mais l'asymétrie n'est pas tracée dans une décision. À arbitrer si le principe « défaut sûr » doit s'appliquer uniformément.
+
 ---
 
 ## dedup/ — Détection de doublons
@@ -156,12 +160,16 @@ Cible un item spécifique via `DELETE /playlists/{ratingKey}/items/{playlistItem
 ### Commande
 
 ```
-uv run python -m adder --file INPUT.txt --playlist "Nom ou ID"
-                       [--execute] [--library Music]
+uv run python -m adder --file INPUT[.txt|.csv] [--playlist "Nom ou ID"]
+                       [--execute] [--create] [--library Music]
                        [--min-confidence 0.85] [--fuzzy-threshold 85]
 ```
 
-### Format d'entrée
+`--playlist` est **obligatoire pour un fichier texte**, **optionnel pour un CSV** (lu dans la colonne `Playlist` ; s'il est fourni, il force une cible unique). `--create` autorise la création d'une playlist inexistante (sinon ignorée).
+
+### Formats d'entrée (auto-détection par extension)
+
+**Texte** (`.txt` ou autre) — `parse_track_list()` :
 
 ```
 # Commentaire (ignoré)
@@ -171,15 +179,17 @@ Artist - Title
 
 Séparateurs : ` – ` (en-dash) prioritaire, fallback ` - ` (hyphen). ValueError si aucun séparateur sur une ligne non-vide non-commentée.
 
+**CSV `unresolved`** (`.csv`) — `parse_unresolved_csv()` : colonnes `Playlist, Artiste, Album, Titre` obligatoires (les autres ignorées). Album vide → `None`. Lignes sans playlist ou sans titre ignorées. ValueError si une colonne obligatoire manque. C'est le format produit par `rebuild/report.py::save_playlist_unresolved_csv` → boucle rebuild → adder.
+
 ### Flux
 
-1. Parse fichier → `list[(artist, title)]`
-2. Déduplique (NFC + lowercase)
-3. Indexe la bibliothèque → `PlexIndexes`
-4. Résout la playlist cible (nom ou ratingKey)
-5. Réconcilie via `rebuild.reconciler.reconcile()`
-6. Catégorise en 4 buckets selon `confidence` vs `min_confidence`
-7. Pour les "missing" : 2e passe fuzzy sans seuil → meilleur candidat (score minimum 30 pour être affiché)
+1. `_build_groups()` : parse + dedup → `dict[playlist, list[(artist, album, title)]]`
+   - texte : `deduplicate_entries()` (clé artist+title), un seul groupe (la playlist `--playlist`)
+   - CSV : `deduplicate_csv_entries()` (clé playlist+artist+title, conserve l'album), un groupe par playlist
+2. Indexe la bibliothèque **une seule fois** → `PlexIndexes`
+3. `get_machine_id()` une seule fois (si `--execute`)
+4. Pour chaque playlist (`_process_playlist`) : résout la cible, réconcilie via `rebuild.reconciler.reconcile()` (album passé à la source), catégorise en 4 buckets, rapport JSON par playlist, ajoute si `--execute`
+5. Pour les "missing" : 2e passe fuzzy sans seuil → meilleur candidat (score minimum 30 pour être affiché)
 
 ### Buckets
 
@@ -192,8 +202,13 @@ Séparateurs : ` – ` (en-dash) prioritaire, fallback ` - ` (hyphen). ValueErro
 
 ### Gotchas
 
-- Les seuils `fuzzy_threshold` et `min_confidence` sont **alignés à 85** par défaut. Un match fuzzy à 85 est considéré confiant. Abaisser `fuzzy_threshold` sans abaisser `min_confidence` crée une dead-zone.
+- **Playlists existantes uniquement par défaut** : `resolve_playlist` fait un match **exact** sur le nom. Si la playlist du CSV est introuvable (nom légèrement différent), le groupe est **ignoré avec avertissement** — jamais recréé sans `--create`. Asymétrie volontaire avec `rebuild` (voir [drift #2](#d4-asymetrie-creation-playlist)).
+- **Album** : passé au reconciler mais à effet marginal — l'étape « metadata exacte » exige `(artist, album, title, track_number)` et le CSV n'a pas de numéro de piste (`None`), donc le match se fait presque toujours au fuzzy qui ignore l'album. Le « fallback sans album » est donc intrinsèque à la cascade.
+- Les seuils `fuzzy_threshold` et `min_confidence` sont **alignés à 85** par défaut. Abaisser `fuzzy_threshold` sans abaisser `min_confidence` crée une dead-zone.
 - `_find_best_fuzzy_candidate` est O(n) sur la bibliothèque, appelé pour chaque track manquante. Atténué par `thefuzz[speedup]` (binding C).
+- Rapports JSON : un par playlist, `reports/add_<Playlist>_<timestamp>.json`, + un total console si plusieurs playlists.
+
+⚠ debt: <a id="d5-safe-name-duplique"></a> `adder/__main__.py::_safe_name` et `rebuild/report.py::_safe_name` font le même nettoyage de nom de fichier. Candidat à factoriser dans `config.py`.
 
 ---
 
@@ -239,6 +254,6 @@ Script one-shot. Affiche : nom serveur, version, plateforme, bibliothèques, pla
 | `tests/test_reconciler.py` | Cascade complète + `parse_source_track` | 12 |
 | `tests/test_rebuilder.py` | Dry-run incrémental + exécution (create/update/skip) | 7 |
 | `tests/test_dedup.py` | `version_stripped_key`, `are_near_duplicates`, `find_exact_duplicates` + sélection bitrate | 29 |
-| `tests/test_adder.py` | `parse_track_list`, `deduplicate_entries` | 21 |
+| `tests/test_adder.py` | `parse_track_list`, `deduplicate_entries`, `parse_unresolved_csv`, `deduplicate_csv_entries` | 29 |
 
-Total : 69 tests. Exécution : `uv run pytest tests/ -v`
+Total : 77 tests. Exécution : `uv run pytest tests/ -v`
