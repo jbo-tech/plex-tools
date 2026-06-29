@@ -2,7 +2,12 @@
 
 import pytest
 
-from adder.parser import parse_track_list, deduplicate_entries
+from adder.parser import (
+    parse_track_list,
+    parse_unresolved_csv,
+    deduplicate_entries,
+    deduplicate_csv_entries,
+)
 
 
 class TestParseTrackList:
@@ -209,5 +214,109 @@ class TestDeduplicateEntries:
         entries = [("Artist", "Song"), (" Artist ", " Song ")]
 
         result = deduplicate_entries(entries)
+
+        assert len(result) == 1
+
+
+_CSV_HEADER = "Playlist,Artiste,Album,Titre,Fichier,Méthode tentée,Notes\n"
+
+
+class TestParseUnresolvedCsv:
+    """Tests pour parse_unresolved_csv (sortie 'unresolved' de rebuild)."""
+
+    def test_basic_row(self, tmp_path):
+        """Extrait (playlist, artist, album, title) d'une ligne."""
+        f = tmp_path / "unresolved.csv"
+        f.write_text(
+            _CSV_HEADER
+            + "Disco A Go-go,Philippe Russo,Magie Noire,Magie noire,,unresolved,\n",
+            encoding="utf-8",
+        )
+
+        result = parse_unresolved_csv(f)
+
+        assert result == [("Disco A Go-go", "Philippe Russo", "Magie Noire", "Magie noire")]
+
+    def test_empty_album_becomes_none(self, tmp_path):
+        """Une colonne Album vide donne None."""
+        f = tmp_path / "unresolved.csv"
+        f.write_text(_CSV_HEADER + "PL,Artist,,Song,,unresolved,\n", encoding="utf-8")
+
+        result = parse_unresolved_csv(f)
+
+        assert result == [("PL", "Artist", None, "Song")]
+
+    def test_skips_rows_without_playlist_or_title(self, tmp_path):
+        """Ignore les lignes sans playlist ou sans titre."""
+        f = tmp_path / "unresolved.csv"
+        f.write_text(
+            _CSV_HEADER
+            + "PL,Artist,Album,Song,,unresolved,\n"
+            + ",Artist,Album,Orphan,,unresolved,\n"
+            + "PL,Artist,Album,,,unresolved,\n",
+            encoding="utf-8",
+        )
+
+        result = parse_unresolved_csv(f)
+
+        assert result == [("PL", "Artist", "Album", "Song")]
+
+    def test_multiple_playlists(self, tmp_path):
+        """Conserve toutes les playlists présentes dans le fichier."""
+        f = tmp_path / "unresolved.csv"
+        f.write_text(
+            _CSV_HEADER
+            + "PL A,Artist1,Album1,Song1,,unresolved,\n"
+            + "PL B,Artist2,Album2,Song2,,unresolved,\n",
+            encoding="utf-8",
+        )
+
+        result = parse_unresolved_csv(f)
+
+        assert len(result) == 2
+        assert {r[0] for r in result} == {"PL A", "PL B"}
+
+    def test_missing_required_column_raises(self, tmp_path):
+        """Lève ValueError si une colonne obligatoire manque."""
+        f = tmp_path / "bad.csv"
+        f.write_text("Artiste,Album,Titre\nA,B,C\n", encoding="utf-8")
+
+        with pytest.raises(ValueError):
+            parse_unresolved_csv(f)
+
+
+class TestDeduplicateCsvEntries:
+    """Tests pour deduplicate_csv_entries."""
+
+    def test_dedup_same_playlist_keeps_first_album(self):
+        """Doublon (playlist, artist, title) : garde la 1re occurrence et son album."""
+        entries = [
+            ("PL", "Artist", "Album1", "Song"),
+            ("PL", "Artist", "Album2", "Song"),
+        ]
+
+        result = deduplicate_csv_entries(entries)
+
+        assert result == [("PL", "Artist", "Album1", "Song")]
+
+    def test_same_title_different_playlist_kept(self):
+        """Même track dans deux playlists différentes : les deux sont conservées."""
+        entries = [
+            ("PL A", "Artist", None, "Song"),
+            ("PL B", "Artist", None, "Song"),
+        ]
+
+        result = deduplicate_csv_entries(entries)
+
+        assert len(result) == 2
+
+    def test_case_and_whitespace_insensitive(self):
+        """La comparaison ignore la casse et les espaces."""
+        entries = [
+            ("PL", "Artist", None, "Song"),
+            (" pl ", " ARTIST ", None, " song "),
+        ]
+
+        result = deduplicate_csv_entries(entries)
 
         assert len(result) == 1
